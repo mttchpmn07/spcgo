@@ -10,7 +10,8 @@ import (
 	"math"
 )
 
-//NumGo.linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None)[source]¶
+// Code taken from pa-m/numgo.
+// linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None)[source]
 func Linspace(start, stop float64, num int32, endPoint bool) []float64 {
 	step := 0.
 	if endPoint {

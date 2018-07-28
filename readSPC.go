@@ -207,14 +207,17 @@ func main() {
 			}	
 		}
 
-		sub_y := make([][]float64, header.Fnsub)
+		sub_y := make([][]float32, header.Fnsub)
 		for i := range sub_y {
-			sub_y[i] = make([]float64, header.Fnpts)
+			sub_y[i] = make([]float32, header.Fnpts)
 		}
 
-		if dat_fmt == "-xy" and header.Fnpts > 0 {
+		// if subfile directory is given
+		if dat_fmt == "-xy" && header.Fnpts > 0 {
+			// loop over entries in directory
 			for i := 0; i < int(header.Fnsub); i++ {
 				fmt.Printf("Need to implement -xy read still\n")
+
 			}
 		} else {
 			for i := 0; i < int(header.Fnsub); i++ {
@@ -225,10 +228,18 @@ func main() {
 					//use global points
 					fmt.Printf("Use global points\n")
 				}
+				// read into object, add to list
+				r := bytes.NewReader(content[sub_pos:(sub_pos + int(header.Fnpts) * 4 + 32)])
+				if err := binary.Read(r, binary.LittleEndian, &sub_y[i]); err != nil {
+					fmt.Println("binary.Read failed:", err)
+					os.Exit(3)
+				}
+				sub_pos = sub_pos + int(header.Fnpts) * 4 + 32
 			}
+		}
 
 		for i := 0; i < int(header.Fnpts); i++ {
-			fmt.Printf("%d: %f\n", i, x[i])
+			fmt.Printf("%d: %f, %f\n", i, x[i], sub_y[0][i])
 		}
 		
 		// Print everything so it is used at least once

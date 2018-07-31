@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"bytes"
 	"math"
+	// "io/ioutil"
 )
 
 // Code taken from pa-m/numgo.
@@ -207,9 +208,9 @@ func main() {
 			}	
 		}
 
-		sub_y := make([][]float32, header.Fnsub)
+		sub_y := make([][]int32, header.Fnsub)
 		for i := range sub_y {
-			sub_y[i] = make([]float32, header.Fnpts)
+			sub_y[i] = make([]int32, header.Fnpts)
 		}
 
 		// if subfile directory is given
@@ -229,17 +230,34 @@ func main() {
 					fmt.Printf("Use global points\n")
 				}
 				// read into object, add to list
-				r := bytes.NewReader(content[sub_pos:(sub_pos + int(header.Fnpts) * 4 + 32)])
+				sub_pos = sub_pos + 32
+				new_sub_pos := sub_pos + (int(header.Fnpts) * 4)
+				// fmt.Printf("%d\n", new_sub_pos)
+				// for j := sub_pos; j < new_sub_pos; j++ {
+				// 	fmt.Printf("%x", content[j])
+				// }
+				r := bytes.NewReader(content[sub_pos:new_sub_pos])
+				// data, _ := ioutil.ReadAll(r)
+				// fmt.Printf("\n%s\n\n", string(data))
 				if err := binary.Read(r, binary.LittleEndian, &sub_y[i]); err != nil {
 					fmt.Println("binary.Read failed:", err)
 					os.Exit(3)
 				}
-				sub_pos = sub_pos + int(header.Fnpts) * 4 + 32
+				sub_pos = new_sub_pos
 			}
 		}
 
+		y := make([][]float64, header.Fnsub)
+		for i := range y {
+			y[i] = make([]float64, header.Fnpts)
+		}
+		for i := range y {
+			for j := range y[i] {
+				y[i][j] = float64(sub_y[i][j]) * math.Pow(2, float64(header.Fexp) - 32)
+			}
+		}
 		for i := 0; i < int(header.Fnpts); i++ {
-			fmt.Printf("%d: %f, %f\n", i, x[i], sub_y[0][i])
+		 	fmt.Printf("%d: %f, %f\n", i, x[i], y[0][i])
 		}
 		
 		// Print everything so it is used at least once

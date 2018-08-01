@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"bytes"
 	"math"
+	"flag"
 	// "io/ioutil"
 )
 
@@ -55,9 +56,33 @@ func ReadBIN(filename string) ([]byte, int64, error) {
 	return content, size, err
 }
 
+func checkEmpty(s string) string {
+    if s == "" {
+        return "empty string"
+    } else {
+	return s
+    }
+}
+
 func main() {
+	var filename string
+	var verbose bool
+	flag.StringVar(&filename, "filename", "", "filename to read defaults to empty string")
+	flag.BoolVar(&verbose, "verbose", false, "boolen to print the details or not dfaults to false")
+	flag.Parse()
+	if !verbose {
+		fmt.Printf("Requested minimal output. Use -verbose=true to see more.\n")
+	}
+
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		fmt.Printf("File <%s> does not exist\n", checkEmpty(filename))
+		fmt.Printf("Check that everything is right and use -filename=<file.spc>\n")
+	} else {
+		fmt.Printf("Reading <%s>\n", filename)
+	}
+
 	// open file
-	content, _, err := ReadBIN("RAMAN.SPC")
+	content, _, err := ReadBIN(filename)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(2)
@@ -80,35 +105,35 @@ func main() {
 		// read rest of header
 		r := bytes.NewReader(content[2:512])
 		var header struct {
-        	Fexper uint8
-        	Fexp uint8
-        	Fnpts int32
-        	Ffirst float64
-        	Flast float64
-        	Fnsub int32
-        	Fxtype uint8
-        	Fytype uint8
-        	Fztype uint8
-        	Fpost uint8
-        	Fdate int32 
-        	Fres [9]byte
-        	Fsource [9]byte
-        	Fpeakpt int16
-        	Fspare [32]byte 
-        	Fcmnt [130]byte
-        	Fcatxt [30]byte
-        	Flogoff int32
-        	Fmods int32
-        	Fprocs uint8
-        	Flevel uint8
-        	Fsampin int16
-        	Ffactor float32
-        	Fmethod [48]byte
-        	Fzinc float32
-        	Fwplanes int32
-        	Fwinc float32
-        	Fwtype uint8
-        	Freserv [187]byte
+		Fexper uint8
+		Fexp uint8
+		Fnpts int32
+		Ffirst float64
+		Flast float64
+		Fnsub int32
+		Fxtype uint8
+		Fytype uint8
+		Fztype uint8
+		Fpost uint8
+		Fdate int32
+		Fres [9]byte
+		Fsource [9]byte
+		Fpeakpt int16
+		Fspare [32]byte
+		Fcmnt [130]byte
+		Fcatxt [30]byte
+		Flogoff int32
+		Fmods int32
+		Fprocs uint8
+		Flevel uint8
+		Fsampin int16
+		Ffactor float32
+		Fmethod [48]byte
+		Fzinc float32
+		Fwplanes int32
+		Fwinc float32
+		Fwtype uint8
+		Freserv [187]byte
 		}
 		if err := binary.Read(r, binary.LittleEndian, &header); err != nil {
 			fmt.Println("binary.Read failed:", err)
@@ -132,13 +157,13 @@ func main() {
 		// parse flag into booleans
 		var flags struct {
 			Tsprec bool
-        	Tcgram bool
-        	Tmulti bool
-        	Trandm bool
-        	Tordrd bool
-        	Talabs bool
-        	Txyxys bool
-        	Txvals bool
+		Tcgram bool
+		Tmulti bool
+		Trandm bool
+		Tordrd bool
+		Talabs bool
+		Txyxys bool
+		Txvals bool
 		}
 		flags.Tsprec = (leader.Ftflg >> 0) & 1 == 1
 		flags.Tcgram = (leader.Ftflg >> 1) & 1 == 1
@@ -148,7 +173,6 @@ func main() {
 		flags.Talabs = (leader.Ftflg >> 5) & 1 == 1
 		flags.Txyxys = (leader.Ftflg >> 6) & 1 == 1
         flags.Txvals = (leader.Ftflg >> 7) & 1 == 1
-		
 		// multi or single spc file
 		var dat_multi bool
 		if header.Fnsub > 1 {
@@ -205,7 +229,7 @@ func main() {
 				sub_pos = sub_pos + 4 * int(header.Fnpts)
 			} else {
 				x = Linspace(header.Ffirst, header.Flast, header.Fnpts, true)
-			}	
+			}
 		}
 
 		sub_y := make([][]int32, header.Fnsub)
@@ -234,7 +258,7 @@ func main() {
 				new_sub_pos := sub_pos + (int(header.Fnpts) * 4)
 				// fmt.Printf("%d\n", new_sub_pos)
 				// for j := sub_pos; j < new_sub_pos; j++ {
-				// 	fmt.Printf("%x", content[j])
+				//	fmt.Printf("%x", content[j])
 				// }
 				r := bytes.NewReader(content[sub_pos:new_sub_pos])
 				// data, _ := ioutil.ReadAll(r)
@@ -256,16 +280,17 @@ func main() {
 				y[i][j] = float64(sub_y[i][j]) * math.Pow(2, float64(header.Fexp) - 32)
 			}
 		}
-		for i := 0; i < int(header.Fnpts); i++ {
-		 	fmt.Printf("%d: %f, %f\n", i, x[i], y[0][i])
+		if verbose{
+			for i := 0; i < int(header.Fnpts); i++ {
+				fmt.Printf("%d: %f, %f\n", i, x[i], y[0][i])
+			}
 		}
-		
 		// Print everything so it is used at least once
 		fmt.Printf("It is a multi file? %t\nData format: %s\n", dat_multi, dat_fmt)
 
 		fmt.Printf("Year: %d\nMonth: %d\nDay: %d\nHour: %d\nMinute: %d\n", date.Year, date.Month, date.Day, date.Hour, date.Minute)
 
-		fmt.Printf("Fexper: %d\nFexp: %d\nFnpts: %d\nFfirst: %f\nFlast: %f\nFnsub: %d\nFxtype: %d\nFytype: %d\nFztype: %d\nFpost: %d\nFdate: %d\nFres: %s\nFsource: %s\nFpeakpt: %d\nFspare: %s\nFcmnt: %s\nFcatxt: %s\nFlogoff: %d\nFmods: %d\nFprocs: %d\nFlevel: %d\nFsampin: %d\nFfactor: %f\nFmethod: %s\nFzinc: %f\nFwplanes: %d\nFwinc: %f\nFwtype: %d\nFreserv: %s\n", header.Fexper, header.Fexp, header.Fnpts, header.Ffirst, header.Flast, header.Fnsub, header.Fxtype, header.Fytype, header.Fztype, header.Fpost, header.Fdate, header.Fres, header.Fsource, header.Fpeakpt, header.Fspare, header.Fcmnt, header.Fcatxt, header.Flogoff, header.Fmods, header.Fprocs, header.Flevel, header.Fsampin, header.Ffactor, header.Fmethod, header.Fzinc, header.Fwplanes, header.Fwinc, header.Fwtype, header.Freserv)
+		if verbose {fmt.Printf("Fexper: %d\nFexp: %d\nFnpts: %d\nFfirst: %f\nFlast: %f\nFnsub: %d\nFxtype: %d\nFytype: %d\nFztype: %d\nFpost: %d\nFdate: %d\nFres: %s\nFsource: %s\nFpeakpt: %d\nFspare: %s\nFcmnt: %s\nFcatxt: %s\nFlogoff: %d\nFmods: %d\nFprocs: %d\nFlevel: %d\nFsampin: %d\nFfactor: %f\nFmethod: %s\nFzinc: %f\nFwplanes: %d\nFwinc: %f\nFwtype: %d\nFreserv: %s\n", header.Fexper, header.Fexp, header.Fnpts, header.Ffirst, header.Flast, header.Fnsub, header.Fxtype, header.Fytype, header.Fztype, header.Fpost, header.Fdate, header.Fres, header.Fsource, header.Fpeakpt, header.Fspare, header.Fcmnt, header.Fcatxt, header.Flogoff, header.Fmods, header.Fprocs, header.Flevel, header.Fsampin, header.Ffactor, header.Fmethod, header.Fzinc, header.Fwplanes, header.Fwinc, header.Fwtype, header.Freserv)}
 
 	} else if leader.Fversn == 76 {
 		fmt.Printf("SPC file version 76.\n")
